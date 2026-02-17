@@ -2,6 +2,13 @@ import { z } from 'zod';
 import { n8nResponseSchema } from './schema';
 
 export const api = {
+  health: {
+    method: 'GET' as const,
+    path: '/api/health' as const,
+    responses: {
+      200: z.object({ status: z.literal("ok") }),
+    },
+  },
   analyze: {
     method: 'POST' as const,
     path: '/api/analyze' as const,
