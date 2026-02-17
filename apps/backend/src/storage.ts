@@ -1,5 +1,6 @@
+import { analysisLog, type AnalysisLog, type InsertAnalysisLog } from "@fishmoney/shared/schema";
+
 import { db } from "./db";
-import { analysisLog, type InsertAnalysisLog, type AnalysisLog } from "@shared/schema";
 
 export interface IStorage {
   logAnalysis(log: InsertAnalysisLog): Promise<AnalysisLog>;

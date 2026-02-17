@@ -1,0 +1,31 @@
+{
+  "name": "@fishmoney/backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "NODE_ENV=development tsx src/index.ts",
+    "build": "node scripts/build.mjs",
+    "start": "NODE_ENV=production node dist/index.cjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "db:push": "drizzle-kit push --config drizzle.config.ts"
+  },
+  "dependencies": {
+    "@fishmoney/shared": "*",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "drizzle-orm": "^0.39.3",
+    "express": "^5.0.1",
+    "pg": "^8.16.3",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.18",
+    "@types/express": "^5.0.0",
+    "@types/node": "20.19.27",
+    "drizzle-kit": "^0.31.8",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.20.5",
+    "typescript": "5.6.3"
+  }
+}

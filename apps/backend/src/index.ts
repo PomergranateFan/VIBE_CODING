@@ -1,7 +1,10 @@
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { serveStatic } from "./static";
+import "dotenv/config";
+import cors from "cors";
+import express, { type NextFunction, type Request, type Response } from "express";
 import { createServer } from "http";
+
+import { env } from "./env";
+import { registerRoutes } from "./routes";
 
 const app = express();
 const httpServer = createServer(app);
@@ -13,11 +16,18 @@ declare module "http" {
 }
 
 app.use(
+  cors({
+    origin: env.CORS_ORIGINS,
+    credentials: true
+  })
+);
+
+app.use(
   express.json({
     verify: (req, _res, buf) => {
       req.rawBody = buf;
-    },
-  }),
+    }
+  })
 );
 
 app.use(express.urlencoded({ extended: false }));
@@ -27,7 +37,7 @@ export function log(message: string, source = "express") {
     hour: "numeric",
     minute: "2-digit",
     second: "2-digit",
-    hour12: true,
+    hour12: true
   });
 
   console.log(`${formattedTime} [${source}] ${message}`);
@@ -36,7 +46,7 @@ export function log(message: string, source = "express") {
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  let capturedJsonResponse: Record<string, unknown> | undefined;
 
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
@@ -75,29 +85,14 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
-  }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {
-      port,
+      port: env.PORT,
       host: "0.0.0.0",
-      reusePort: true,
+      reusePort: true
     },
     () => {
-      log(`serving on port ${port}`);
-    },
+      log(`backend API listening on port ${env.PORT}`);
+    }
   );
 })();
