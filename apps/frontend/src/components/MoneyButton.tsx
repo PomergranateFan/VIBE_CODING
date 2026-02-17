@@ -7,64 +7,46 @@ import { useToast } from "@/hooks/use-toast";
 export function MoneyButton() {
   const { toast } = useToast();
   const [clickCount, setClickCount] = useState(0);
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasShownAudioErrorRef = useRef(false);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      audioRef.current = new Audio("/yanix.mp3");
+      audioRef.current.preload = "auto";
+    }
+
     return () => {
-      if (audioContextRef.current) {
-        void audioContextRef.current.close();
-        audioContextRef.current = null;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current = null;
       }
     };
   }, []);
 
   const playClickTune = async () => {
-    if (typeof window === "undefined") {
+    const audio = audioRef.current;
+
+    if (!audio) {
       return;
     }
 
-    const audioContextCtor =
-      window.AudioContext ??
-      (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
+    audio.currentTime = 0;
 
-    if (!audioContextCtor) {
-      return;
+    try {
+      await audio.play();
+    } catch {
+      if (!hasShownAudioErrorRef.current) {
+        hasShownAudioErrorRef.current = true;
+        toast({
+          title: "Музыка не найдена",
+          description: "Добавь трек в apps/frontend/public/yanix.mp3",
+          className: "bg-amber-600 text-white border-amber-700 font-bold",
+          duration: 3000,
+        });
+      }
     }
-
-    if (!audioContextRef.current) {
-      audioContextRef.current = new audioContextCtor();
-    }
-
-    const audioContext = audioContextRef.current;
-
-    if (audioContext.state === "suspended") {
-      await audioContext.resume();
-    }
-
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    const noteDuration = 0.12;
-    const startTime = audioContext.currentTime;
-
-    notes.forEach((frequency, index) => {
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      const noteStart = startTime + index * noteDuration;
-      const noteEnd = noteStart + noteDuration;
-
-      oscillator.type = "triangle";
-      oscillator.frequency.setValueAtTime(frequency, noteStart);
-
-      gainNode.gain.setValueAtTime(0.0001, noteStart);
-      gainNode.gain.exponentialRampToValueAtTime(0.24, noteStart + 0.02);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.start(noteStart);
-      oscillator.stop(noteEnd);
-    });
   };
 
   const handleMakeMoney = () => {

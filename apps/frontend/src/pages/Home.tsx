@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,11 +25,40 @@ export default function Home() {
   const { toast } = useToast();
   const { mutate: analyze, data, isPending, error } = useAnalyzeTicker();
   const { favorites, isFavorite, addFavorite, removeFavorite, toggleFavorite } = useFavorites();
+  const [isExplosionVisible, setIsExplosionVisible] = useState(false);
+  const [explosionRun, setExplosionRun] = useState(0);
 
   const form = useForm<z.infer<typeof searchSchema>>({
     resolver: zodResolver(searchSchema),
     defaultValues: { ticker: "" },
   });
+
+  const explosionParticles = useMemo(
+    () =>
+      Array.from({ length: 32 }, (_, index) => {
+        const angle = (360 / 32) * index + ((explosionRun * 13) % 17);
+        const distance = 260 + ((index * 37 + explosionRun * 41) % 420);
+        const size = 10 + ((index * 11 + explosionRun * 23) % 18);
+        const delay = (index % 6) * 0.02;
+        return { index, angle, distance, size, delay };
+      }),
+    [explosionRun]
+  );
+
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+
+    setExplosionRun((current) => current + 1);
+    setIsExplosionVisible(true);
+
+    const timeoutId = window.setTimeout(() => {
+      setIsExplosionVisible(false);
+    }, 950);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [data]);
 
   const runTickerAnalysis = (ticker: string) => {
     const normalized = ticker.trim().toUpperCase();
@@ -106,6 +136,69 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[url('https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-fixed bg-center relative">
+      <AnimatePresence>
+        {isExplosionVisible && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="pointer-events-none fixed inset-0 z-[120] overflow-hidden"
+          >
+            <motion.div
+              initial={{ opacity: 0.9 }}
+              animate={{ opacity: 0 }}
+              transition={{ duration: 0.85, ease: "easeOut" }}
+              className="absolute inset-0 bg-orange-500/35"
+            />
+
+            <motion.div
+              initial={{ scale: 0.2, opacity: 1 }}
+              animate={{ scale: 8, opacity: 0 }}
+              transition={{ duration: 0.9, ease: [0.1, 0.75, 0.1, 1] }}
+              className="absolute left-1/2 top-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full bg-yellow-100 shadow-[0_0_120px_rgba(255,255,255,0.9)]"
+            />
+
+            <motion.div
+              initial={{ scale: 0.3, opacity: 0.9 }}
+              animate={{ scale: 14, opacity: 0 }}
+              transition={{ duration: 0.85, ease: "easeOut" }}
+              className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-8 border-orange-200"
+            />
+
+            {explosionParticles.map((particle) => {
+              const angleRadians = (particle.angle * Math.PI) / 180;
+              const destinationX = Math.cos(angleRadians) * particle.distance;
+              const destinationY = Math.sin(angleRadians) * particle.distance;
+
+              return (
+                <motion.span
+                  key={`${explosionRun}-${particle.index}`}
+                  initial={{ x: 0, y: 0, scale: 0.4, opacity: 1, rotate: particle.angle }}
+                  animate={{
+                    x: destinationX,
+                    y: destinationY,
+                    scale: 0.05,
+                    opacity: 0,
+                    rotate: particle.angle + 110,
+                  }}
+                  transition={{
+                    duration: 0.8,
+                    delay: particle.delay,
+                    ease: [0.17, 0.67, 0.32, 0.99],
+                  }}
+                  className="absolute left-1/2 top-1/2 rounded-full bg-gradient-to-r from-yellow-200 via-orange-400 to-red-500 shadow-[0_0_35px_rgba(251,146,60,0.85)]"
+                  style={{
+                    width: `${particle.size}px`,
+                    height: `${Math.max(8, particle.size * 2.2)}px`,
+                  }}
+                />
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Dark Overlay */}
       <div className="absolute inset-0 bg-background/85 backdrop-blur-sm z-0" />
 
