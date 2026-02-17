@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import { ShinyButton } from "@/components/ui/shiny-button";
 import { DollarSign } from "lucide-react";
@@ -7,9 +7,69 @@ import { useToast } from "@/hooks/use-toast";
 export function MoneyButton() {
   const { toast } = useToast();
   const [clickCount, setClickCount] = useState(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
+
+  const playClickTune = async () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const audioContextCtor =
+      window.AudioContext ??
+      (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+
+    if (!audioContextCtor) {
+      return;
+    }
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new audioContextCtor();
+    }
+
+    const audioContext = audioContextRef.current;
+
+    if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    const noteDuration = 0.12;
+    const startTime = audioContext.currentTime;
+
+    notes.forEach((frequency, index) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      const noteStart = startTime + index * noteDuration;
+      const noteEnd = noteStart + noteDuration;
+
+      oscillator.type = "triangle";
+      oscillator.frequency.setValueAtTime(frequency, noteStart);
+
+      gainNode.gain.setValueAtTime(0.0001, noteStart);
+      gainNode.gain.exponentialRampToValueAtTime(0.24, noteStart + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.start(noteStart);
+      oscillator.stop(noteEnd);
+    });
+  };
 
   const handleMakeMoney = () => {
     setClickCount(prev => prev + 1);
+    void playClickTune();
     
     // Confetti explosion
     const count = 200;
@@ -60,7 +120,7 @@ export function MoneyButton() {
         className="text-2xl px-12 py-6 shadow-green-500/50 hover:shadow-green-400/60"
       >
         <DollarSign className="w-8 h-8" />
-        КНОПКА БАБЛО
+        КНОПКА БАБЛО + МУЗЫКА
         <DollarSign className="w-8 h-8" />
       </ShinyButton>
       

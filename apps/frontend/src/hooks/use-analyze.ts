@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
-import { api, type N8nResponse } from "@shared/routes";
+import { api } from "@fishmoney/shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { toApiUrl } from "@/lib/api";
 
 export function useAnalyzeTicker() {
   const { toast } = useToast();
@@ -10,7 +11,7 @@ export function useAnalyzeTicker() {
       // Small artificial delay to simulate "reeling in" the fish if API is too fast
       const minDelay = new Promise(resolve => setTimeout(resolve, 1500));
       
-      const res = await fetch(api.analyze.path, {
+      const res = await fetch(toApiUrl(api.analyze.path), {
         method: api.analyze.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticker }),

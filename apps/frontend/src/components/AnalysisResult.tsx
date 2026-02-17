@@ -1,14 +1,25 @@
 import { motion } from "framer-motion";
-import { type N8nResponse } from "@shared/schema";
-import { TrendingUp, TrendingDown, Minus, Anchor, Newspaper, DollarSign } from "lucide-react";
+import { type N8nResponse } from "@fishmoney/shared/schema";
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Anchor,
+  Newspaper,
+  DollarSign,
+  Star,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   data: N8nResponse;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
 }
 
-export function AnalysisResult({ data }: Props) {
+export function AnalysisResult({ data, isFavorite, onToggleFavorite }: Props) {
   const isBullish = data.sentiment === "Bullish";
   const isBearish = data.sentiment === "Bearish";
   
@@ -34,9 +45,21 @@ export function AnalysisResult({ data }: Props) {
                 <h2 className="text-4xl font-display text-primary tracking-wider">{data.ticker}</h2>
                 <p className="text-muted-foreground font-medium text-lg">{data.company_name}</p>
               </div>
-              <Badge variant="outline" className={`px-4 py-1 text-lg font-display ${sentimentColor} border-current`}>
-                {data.sentiment.toUpperCase()}
-              </Badge>
+              <div className="flex items-center gap-3">
+                <Badge variant="outline" className={`px-4 py-1 text-lg font-display ${sentimentColor} border-current`}>
+                  {data.sentiment.toUpperCase()}
+                </Badge>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  onClick={onToggleFavorite}
+                  aria-label={isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
+                  className="h-10 w-10 rounded-full border-primary/50 bg-background/30 text-primary hover:bg-primary/20"
+                >
+                  <Star className={isFavorite ? "fill-current" : ""} />
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>

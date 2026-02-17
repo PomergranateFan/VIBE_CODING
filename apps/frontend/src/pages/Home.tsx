@@ -1,17 +1,19 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, Fish, Anchor } from "lucide-react";
+import { Search, Loader2, Fish, Anchor, Star, X } from "lucide-react";
 
 import { useAnalyzeTicker } from "@/hooks/use-analyze";
+import { useFavorites } from "@/hooks/use-favorites";
+import { useToast } from "@/hooks/use-toast";
 import { MoneyButton } from "@/components/MoneyButton";
 import { QuoteMarquee } from "@/components/QuoteMarquee";
 import { AnalysisResult } from "@/components/AnalysisResult";
 import { Input } from "@/components/ui/input";
 import { ShinyButton } from "@/components/ui/shiny-button";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 const searchSchema = z.object({
@@ -19,17 +21,60 @@ const searchSchema = z.object({
 });
 
 export default function Home() {
-  const [searchedTicker, setSearchedTicker] = useState<string | null>(null);
+  const { toast } = useToast();
   const { mutate: analyze, data, isPending, error } = useAnalyzeTicker();
+  const { favorites, isFavorite, removeFavorite, toggleFavorite } = useFavorites();
 
   const form = useForm<z.infer<typeof searchSchema>>({
     resolver: zodResolver(searchSchema),
     defaultValues: { ticker: "" },
   });
 
+  const runTickerAnalysis = (ticker: string) => {
+    const normalized = ticker.trim().toUpperCase();
+    if (!normalized) {
+      return;
+    }
+
+    form.setValue("ticker", normalized, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+    analyze(normalized);
+  };
+
   const onSubmit = (values: z.infer<typeof searchSchema>) => {
-    setSearchedTicker(values.ticker);
-    analyze(values.ticker.toUpperCase());
+    runTickerAnalysis(values.ticker);
+  };
+
+  const onToggleFavorite = () => {
+    if (!data) {
+      return;
+    }
+
+    const action = toggleFavorite(data.ticker, data.company_name);
+    toast({
+      title: action === "added" ? "В ИЗБРАННОМ" : "УБРАЛИ ИЗ ИЗБРАННОГО",
+      description:
+        action === "added"
+          ? `${data.ticker} сохранен для быстрого доступа.`
+          : `${data.ticker} удален из избранного.`,
+      className: "bg-card text-foreground border-primary/40",
+    });
+  };
+
+  const onRemoveFavorite = (ticker: string) => {
+    const removed = removeFavorite(ticker);
+    if (!removed) {
+      return;
+    }
+
+    toast({
+      title: "УДАЛЕНО ИЗ ИЗБРАННОГО",
+      description: `${ticker} убран из сохраненных тикеров.`,
+      className: "bg-card text-foreground border-primary/40",
+    });
   };
 
   return (
@@ -113,6 +158,49 @@ export default function Home() {
             </Form>
           </Card>
 
+          {favorites.length > 0 && (
+            <Card className="w-full max-w-4xl bg-card/60 border-primary/20 backdrop-blur-xl shadow-xl">
+              <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+                <h3 className="text-lg font-display text-primary flex items-center gap-2">
+                  <Star className="w-5 h-5 fill-current" />
+                  ИЗБРАННЫЕ ТИКЕРЫ
+                </h3>
+                <span className="text-xs text-muted-foreground tracking-widest">{favorites.length} ШТ.</span>
+              </div>
+              <div className="p-4 grid gap-2">
+                {favorites.map((favorite) => (
+                  <div
+                    key={favorite.ticker}
+                    className="flex items-center gap-2 rounded-lg border border-white/10 bg-background/30 p-1.5"
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-10 flex-1 justify-start gap-3 px-3"
+                      disabled={isPending}
+                      onClick={() => runTickerAnalysis(favorite.ticker)}
+                    >
+                      <span className="font-display text-primary">{favorite.ticker}</span>
+                      <span className="truncate text-left text-sm text-muted-foreground">
+                        {favorite.companyName}
+                      </span>
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      onClick={() => onRemoveFavorite(favorite.ticker)}
+                      aria-label={`Убрать ${favorite.ticker} из избранного`}
+                      className="h-10 w-10 border-white/20 bg-background/40 hover:bg-destructive/20"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {/* Loading State - Fishing Animation */}
           <AnimatePresence mode="wait">
             {isPending && (
@@ -154,7 +242,11 @@ export default function Home() {
             {/* Result State */}
             {data && !isPending && (
               <div className="w-full">
-                <AnalysisResult data={data} />
+                <AnalysisResult
+                  data={data}
+                  isFavorite={isFavorite(data.ticker)}
+                  onToggleFavorite={onToggleFavorite}
+                />
               </div>
             )}
           </AnimatePresence>
