@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Loader2, Fish, Anchor, Star, X } from "lucide-react";
+import { Search, Loader2, Fish, Anchor, Star, X, Plus } from "lucide-react";
 
 import { useAnalyzeTicker } from "@/hooks/use-analyze";
 import { useFavorites } from "@/hooks/use-favorites";
@@ -23,7 +23,7 @@ const searchSchema = z.object({
 export default function Home() {
   const { toast } = useToast();
   const { mutate: analyze, data, isPending, error } = useAnalyzeTicker();
-  const { favorites, isFavorite, removeFavorite, toggleFavorite } = useFavorites();
+  const { favorites, isFavorite, addFavorite, removeFavorite, toggleFavorite } = useFavorites();
 
   const form = useForm<z.infer<typeof searchSchema>>({
     resolver: zodResolver(searchSchema),
@@ -46,6 +46,33 @@ export default function Home() {
 
   const onSubmit = (values: z.infer<typeof searchSchema>) => {
     runTickerAnalysis(values.ticker);
+  };
+
+  const onAddTickerToFavorites = () => {
+    const inputTicker = form.getValues("ticker").trim().toUpperCase();
+    if (!inputTicker) {
+      toast({
+        title: "ВВЕДИ ТИКЕР",
+        description: "Сначала укажи тикер акции, потом добавляй в избранное.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    form.setValue("ticker", inputTicker, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+
+    const added = addFavorite(inputTicker, inputTicker);
+    toast({
+      title: added ? "В ИЗБРАННОМ" : "УЖЕ В ИЗБРАННОМ",
+      description: added
+        ? `${inputTicker} добавлен в сохраненные тикеры.`
+        : `${inputTicker} уже есть в избранном.`,
+      className: "bg-card text-foreground border-primary/40",
+    });
   };
 
   const onToggleFavorite = () => {
@@ -125,7 +152,7 @@ export default function Home() {
           {/* Search Section */}
           <Card className="w-full max-w-xl p-2 bg-card/50 border-white/10 backdrop-blur-xl shadow-2xl">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="flex gap-2">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-2 sm:flex-row">
                 <FormField
                   control={form.control}
                   name="ticker"
@@ -146,7 +173,7 @@ export default function Home() {
                 <ShinyButton 
                   type="submit" 
                   disabled={isPending}
-                  className="h-14 px-8 min-w-[140px]"
+                  className="h-14 w-full px-8 sm:w-auto sm:min-w-[140px]"
                 >
                   {isPending ? (
                     <Loader2 className="w-6 h-6 animate-spin" />
@@ -154,6 +181,15 @@ export default function Home() {
                     <Search className="w-6 h-6" />
                   )}
                 </ShinyButton>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onAddTickerToFavorites}
+                  className="h-14 w-full border-primary/40 bg-background/40 px-5 text-primary hover:bg-primary/15 sm:w-auto"
+                >
+                  <Plus className="w-5 h-5" />
+                  В ИЗБРАННОЕ
+                </Button>
               </form>
             </Form>
           </Card>
