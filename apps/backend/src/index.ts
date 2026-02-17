@@ -1,4 +1,3 @@
-import "dotenv/config";
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { createServer } from "http";
@@ -8,6 +7,8 @@ import { registerRoutes } from "./routes";
 
 const app = express();
 const httpServer = createServer(app);
+const localOriginPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+const allowedOrigins = new Set(env.CORS_ORIGINS);
 
 declare module "http" {
   interface IncomingMessage {
@@ -17,7 +18,22 @@ declare module "http" {
 
 app.use(
   cors({
-    origin: env.CORS_ORIGINS,
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      const allowByConfig = allowedOrigins.has(origin);
+      const allowLocalDev = env.NODE_ENV !== "production" && localOriginPattern.test(origin);
+
+      if (allowByConfig || allowLocalDev) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true
   })
 );
@@ -93,6 +109,7 @@ app.use((req, res, next) => {
     },
     () => {
       log(`backend API listening on port ${env.PORT}`);
+      log(`n8n webhook target: ${env.N8N_WEBHOOK_URL}`);
     }
   );
 })();

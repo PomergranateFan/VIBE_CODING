@@ -1,42 +1,65 @@
 # Fish & Money Workspace
 
-Monorepo with 2 services:
-- `@fishmoney/frontend` (`apps/frontend`) - Vite + React SPA
-- `@fishmoney/backend` (`apps/backend`) - Express API
-- `@fishmoney/shared` (`packages/shared`) - shared zod contracts/types
+## Описание проекта
+Учебный fullstack-проект в формате monorepo:
+- `@fishmoney/frontend` (`apps/frontend`) - SPA на Vite + React.
+- `@fishmoney/backend` (`apps/backend`) - API на Express.
+- `@fishmoney/shared` (`packages/shared`) - общие контракты и типы на Zod.
 
-## API contract
+## Учебная задача
+Собрать приложение, где пользователь вводит тикер акции, а система показывает краткий анализ:
+- frontend отправляет тикер на backend;
+- backend ходит в n8n webhook за данными;
+- ответ приводится к единому контракту и возвращается в UI.
 
-Main endpoint is unchanged:
+## Что реализовано на первом этапе
+- Настроен monorepo с разделением на frontend/backend/shared.
+- Добавлен единый API-контракт (`POST /api/analyze`, `GET /api/health`) в `packages/shared`.
+- Реализован backend с валидацией env-переменных, CORS и логированием запросов.
+- Добавлена нормализация нестабильного ответа n8n (в т.ч. вложенные/строковые JSON-ответы).
+- Подключено логирование результатов анализа в БД через Drizzle.
+- Реализован frontend-интерфейс: форма ввода тикера, состояния загрузки/ошибки, отображение аналитики и новостей.
+- Добавлено избранное тикеров (localStorage) и быстрый повторный запуск анализа.
+
+## API
 - `POST /api/analyze`
-  - request: `{ "ticker": "AAPL" }`
-  - responses: same schemas as before (`200`, `400`, `500`)
+  - запрос: `{ "ticker": "AAPL" }`
+  - `200`: нормализованный анализ по контракту `n8nResponseSchema`
+  - `400`: некорректный вход
+  - `502`: ошибка получения live-данных из n8n
+- `GET /api/health` -> `{ "status": "ok" }`
 
-Additional endpoint:
-- `GET /api/health`
-
-## Environment variables
-
+## Переменные окружения
 Backend (`apps/backend/.env`):
-- `PORT` (default `5000`)
-- `DATABASE_URL` (required)
-- `N8N_WEBHOOK_URL` (required)
-- `CORS_ORIGINS` (comma-separated, default `http://localhost:5173`)
+- `PORT` (по умолчанию `5001`)
+- `DATABASE_URL` (обязательно)
+- `N8N_WEBHOOK_URL` (обязательно)
+- `CORS_ORIGINS` (через запятую, по умолчанию `http://localhost:5173,http://127.0.0.1:5173`)
 
 Frontend (`apps/frontend/.env`):
-- `VITE_API_BASE_URL` (default fallback in code: `http://localhost:5000`)
+- `VITE_API_BASE_URL` (например: `http://localhost:5001`)
 
-## Scripts (root)
+## Как пользоваться
+1. Установить зависимости:
+   - `npm install`
+2. Подготовить `.env`:
+   - `cp apps/backend/.env.example apps/backend/.env`
+   - `cp apps/frontend/.env.example apps/frontend/.env`
+3. (Опционально) применить схему БД:
+   - `npm run db:push`
+4. Запустить проект:
+   - `npm run dev`
+5. Открыть `http://localhost:5173`, ввести тикер (например, `AAPL`) и получить анализ.
 
-- `npm run dev` - run backend + frontend in parallel
-- `npm run build` - build shared, then backend, then frontend
-- `npm run start` - run backend production server
-- `npm run check` - run type checks in all workspaces
-- `npm run db:push` - run Drizzle push for backend
+## Скрипты (корень репозитория)
+- `npm run dev` - backend + frontend параллельно
+- `npm run build` - сборка shared, backend, frontend
+- `npm run start` - запуск backend в production-режиме
+- `npm run check` - проверка TypeScript во всех workspace
+- `npm run db:push` - пуш схемы Drizzle для backend
 
 ## Production split
-
-- Deploy `apps/frontend` as static build (`npm run build -w @fishmoney/frontend`)
-- Deploy `apps/backend` as API service (`npm run build -w @fishmoney/backend && npm run start -w @fishmoney/backend`)
-- Set `VITE_API_BASE_URL` in frontend build env to backend API domain
-- Set `CORS_ORIGINS` in backend env to frontend domain(s)
+- Деплой frontend как статический build: `npm run build -w @fishmoney/frontend`
+- Деплой backend как API-сервис: `npm run build -w @fishmoney/backend && npm run start -w @fishmoney/backend`
+- Для frontend выставить `VITE_API_BASE_URL` на домен backend API
+- Для backend выставить `CORS_ORIGINS` на домен(ы) frontend

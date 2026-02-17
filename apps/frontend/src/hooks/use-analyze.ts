@@ -10,16 +10,27 @@ export function useAnalyzeTicker() {
     mutationFn: async (ticker: string) => {
       // Small artificial delay to simulate "reeling in" the fish if API is too fast
       const minDelay = new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const res = await fetch(toApiUrl(api.analyze.path), {
-        method: api.analyze.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticker }),
-      });
+
+      const apiUrl = toApiUrl(api.analyze.path);
+      let res: Response;
+
+      try {
+        res = await fetch(apiUrl, {
+          method: api.analyze.method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ticker }),
+        });
+      } catch {
+        throw new Error(`Нет связи с API (${apiUrl}). Проверь backend и CORS.`);
+      }
 
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Не удалось поймать данные");
+        try {
+          const error = await res.json();
+          throw new Error(error.message || `HTTP ${res.status}`);
+        } catch {
+          throw new Error(`API вернул HTTP ${res.status}`);
+        }
       }
 
       const data = await res.json();
